@@ -1,0 +1,4 @@
+version=3
+
+opts=filenamemangle=s/.+\/v?(\d\S*)\.tar\.gz/arm-mem-$1\.tar\.gz/ \
+  https://github.com/RPi-Distro/arm-mem/tags .*/v?(\d\S*)\.tar\.gz

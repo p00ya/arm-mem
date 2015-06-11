@@ -1,0 +1,15 @@
+Source: raspi-copies-and-fills
+Section: libs
+Priority: optional
+Maintainer: Serge Schneider <serge@raspberrypi.org>
+Build-Depends: debhelper (>= 9)
+Standards-Version: 3.9.6
+Homepage: https://github.com/bavison/arm-mem
+Vcs-Git: https://github.com/RPi-Distro/arm-mem.git -b debian
+Vcs-Browser: https://github.com/RPi-Distro/arm-mem/tree/debian
+
+Package: raspi-copies-and-fills
+Architecture: armhf
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: ARM-accelerated versions of selected functions from string.h
+ Optimized implementations of memset, memcpy, memcmp and memmove for ARM1176JZF-S and Cortex A7
