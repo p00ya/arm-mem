@@ -15,16 +15,20 @@
 #define TILEWIDTH (32)
 #define TINYWIDTH (8)
 
+#if 1
+#define CANDIDATE memcpy
+#define CANDIDATE_RETURN_TYPE void *
+#elif 1
+#define CANDIDATE memset
+#define CANDIDATE_RETURN_TYPE void *
+#elif 1
 #define CANDIDATE memcmp
-//#define CANDIDATE memset
+#define CANDIDATE_RETURN_TYPE int
+#endif
 
-void *mymemset(void *s, int c, size_t n);
-void *mymemcpy(void * restrict s1, const void * restrict s2, size_t n);
-void *mymemmove(void *s1, const void *s2, size_t n);
-int   mymemcmp(const void *s1, const void *s2, size_t n);
 
 /* Just used for cancelling out the overheads */
-static int control(const void *s1, const void *s2, size_t n)
+static CANDIDATE_RETURN_TYPE control(const void *s1, const void *s2, size_t n)
 {
     return 0;
 }
@@ -37,7 +41,7 @@ static uint64_t gettime(void)
     return tv.tv_sec * 1000000 + tv.tv_usec;
 }
 
-static uint32_t bench_L(int (*test)(), char *a, char *b, size_t len, size_t times)
+static uint32_t bench_L(CANDIDATE_RETURN_TYPE (*test)(), char *a, char *b, size_t len, size_t times)
 {
     int i, j, x = 0, q = 0;
     volatile int qx;
@@ -54,7 +58,7 @@ static uint32_t bench_L(int (*test)(), char *a, char *b, size_t len, size_t time
     return len * times;
 }
 
-static uint32_t bench_M(int (*test)(), char *a, char *b, size_t len, size_t times)
+static uint32_t bench_M(CANDIDATE_RETURN_TYPE (*test)(), char *a, char *b, size_t len, size_t times)
 {
     int i, x = 0;
     for (i = times; i >= 0; i--)
@@ -65,7 +69,7 @@ static uint32_t bench_M(int (*test)(), char *a, char *b, size_t len, size_t time
     return len * times;
 }
 
-static uint32_t bench_T(int (*test)(), char *a, char *b, size_t times)
+static uint32_t bench_T(CANDIDATE_RETURN_TYPE (*test)(), char *a, char *b, size_t times)
 {
     uint32_t total = 0;
     int i, x = 0;
@@ -83,7 +87,7 @@ static uint32_t bench_T(int (*test)(), char *a, char *b, size_t times)
     return total;
 }
 
-static uint32_t bench_R(int (*test)(), char *a, char *b, size_t times)
+static uint32_t bench_R(CANDIDATE_RETURN_TYPE (*test)(), char *a, char *b, size_t times)
 {
     uint32_t total = 0;
     int i;
@@ -100,7 +104,23 @@ static uint32_t bench_R(int (*test)(), char *a, char *b, size_t times)
     return total;
 }
 
-static uint32_t bench_RT(int (*test)(), char *a, char *b, size_t times)
+static uint32_t bench_RW(CANDIDATE_RETURN_TYPE (*test)(), char *a, char *b, size_t w, size_t times)
+{
+    uint32_t total = 0;
+    int i;
+
+    srand (0);
+    for (i = times; i >= 0; i--)
+    {
+        int ax = (rand() % (MEGABYTE - 1024));
+        int bx = (rand() % (MEGABYTE - 1024));
+        test(a + ax, b + bx, w);
+        total += w;
+    }
+    return total;
+}
+
+static uint32_t bench_RT(CANDIDATE_RETURN_TYPE (*test)(), char *a, char *b, size_t times)
 {
     uint32_t total = 0;
     int i;
@@ -144,7 +164,17 @@ int main(int argc, char *argv[])
     memset(membufa, 0x5A, sizeof membufa);
     memset(membufb, 0x5A, sizeof membufb);
 
+    // This code was useful for correctness checking.
+    // The "my" prefix was used during development to enable the test harness to function
+    // even when the local implementations were buggy.
 #if 0
+    void *mymemset(void *s, int c, size_t n);
+    void *mymemcpy(void * restrict s1, const void * restrict s2, size_t n);
+    void *mymemmove(void *s1, const void *s2, size_t n);
+    int   mymemcmp(const void *s1, const void *s2, size_t n);
+
+// These defines are used to prove that the test harness is correct - to test the local
+// implementations, comment out the #define
 #define mymemset memset
 #define mymemcmp memcmp
 #define mymemcpy memcpy
@@ -156,23 +186,34 @@ int main(int argc, char *argv[])
             memset(l1bufa+d, 0xA5, n);
             mymemset(l1bufa+d, 0x5A, n);
             if (memcmp(l1bufa, l1bufb, sizeof l1bufa) != 0)
-                printf("memset failed with d = %d, n = %d\n", d, n);
+            {
+                printf("memset failed (insufficient) with d = %d, n = %d\n", d, n);
+                for (int x = 0; x < sizeof l1bufa; x++)
+                    if (l1bufa[x] != 0x5A)
+                        printf("Offset %d is wrong\n", x);
+            }
             mymemset(l1bufa+d, 0xA5, n);
             memset(l1bufa+d, 0x5A, n);
             if (memcmp(l1bufa, l1bufb, sizeof l1bufa) != 0)
-                printf("memset failed with d = %d, n = %d\n", d, n);
+            {
+                printf("memset failed (excessive) with d = %d, n = %d\n", d, n);
+                for (int x = 0; x < sizeof l1bufa; x++)
+                    if (l1bufa[x] != 0x5A)
+                        printf("Offset %d is wrong\n", x);
+            }
         }
     }
 
     /* Check memcmp */
     {
+#define SIGNOF(x) (((x)>0)-((x)<0))
         uint32_t a = 0x00010200, b = 0x00020100;
         int d1,d2;
-        if ((d1=memcmp(l1bufa, l1bufb, sizeof l1bufa)) != (d2=mymemcmp(l1bufa, l1bufb, sizeof l1bufa)))
+        if ((d1=SIGNOF(memcmp(l1bufa, l1bufb, sizeof l1bufa))) != (d2=SIGNOF(mymemcmp(l1bufa, l1bufb, sizeof l1bufa))))
             printf("memcmp failed (0: %d %d)\n", d1, d2);
-        if ((d1=memcmp(&a, &b, 4)) != (d2=mymemcmp(&a, &b, 4)))
+        if ((d1=SIGNOF(memcmp(&a, &b, 4))) != (d2=SIGNOF(mymemcmp(&a, &b, 4))))
             printf("memcmp failed (1: %d %d)\n", d1, d2);
-        if ((d1=memcmp(&b, &a, 4)) != (d2=mymemcmp(&b, &a, 4)))
+        if ((d1=SIGNOF(memcmp(&b, &a, 4))) != (d2=SIGNOF(mymemcmp(&b, &a, 4))))
             printf("memcmp failed (2: %d %d)\n", d1, d2);
 
         /*
@@ -225,6 +266,29 @@ int main(int argc, char *argv[])
                     }
                     else if (mymemcmp(l1bufb+j, l1bufa+i, len) != 0)
                         printf("memcmp failed (%u %u %u)\n", i, j, len);
+                    for (size_t k = 0; k + 1 < len && k + 1 < 20; k++)
+                    {
+                        size_t k2 = len - 2 - k;
+                        l1bufb[j+k] ^= 0x80;
+                        l1bufb[j+k+1] ^= 0x80;
+
+                        if (SIGNOF(mymemcmp(l1bufb+j, l1bufa+i, len)) != SIGNOF(memcmp(l1bufb+j, l1bufa+i, len)))
+                            printf("memcmp failed (%u %u %u with diff at %u was %c0, should be %c0\n",
+                                    i, j, len, k,
+                                    "<=>"[SIGNOF(mymemcmp(l1bufb+j, l1bufa+i, len)) + 1],
+                                    "<=>"[SIGNOF(memcmp(l1bufb+j, l1bufa+i, len)) + 1]);
+                        l1bufb[j+k] ^= 0x80;
+                        l1bufb[j+k+1] ^= 0x80;
+                        l1bufb[j+k2] ^= 0x80;
+                        l1bufb[j+k2+1] ^= 0x80;
+                        if (SIGNOF(mymemcmp(l1bufb+j, l1bufa+i, len)) != SIGNOF(memcmp(l1bufb+j, l1bufa+i, len)))
+                            printf("memcmp failed (%u %u %u with diff at %u was %c0, should be %c0\n",
+                                    i, j, len, k2,
+                                    "<=>"[SIGNOF(mymemcmp(l1bufb+j, l1bufa+i, len)) + 1],
+                                    "<=>"[SIGNOF(memcmp(l1bufb+j, l1bufa+i, len)) + 1]);
+                        l1bufb[j+k2] ^= 0x80;
+                        l1bufb[j+k2+1] ^= 0x80;
+                    }
                     if (memcmp(l1bufb, l2bufa, j) != 0)
                         printf("memcpy failed (before: %u %u %u)\n", i, j, len);
                     if (memcmp(l1bufb+j+len, l2bufa, sizeof l1bufa -j-len) != 0)
@@ -234,6 +298,7 @@ int main(int argc, char *argv[])
     }
 #endif
 
+    // This code is for benchmarking
 #if 1
     printf("L1,     L2,     M,      T,      R,      RT\n");
 
@@ -304,6 +369,34 @@ int main(int argc, char *argv[])
         t3 = gettime();
         printf("%6.2f\n", ((double)byte_cnt) / ((t3 - t2) - (t2 - t1)));
         fflush(stdout);
+    }
+#elif 0
+    const char *sep = "";
+    for (int w = 1; w <= 100; w++)
+    {
+        printf("%sW%d", sep, w);
+        sep = ", ";
+    }
+    printf("\n");
+
+    while (iterations--)
+    {
+        sep = "";
+        for (int w = 1; w <= 100; w++)
+        {
+            memcpy(membufa, membufb, sizeof membufa);
+            memcpy(membufb, membufa, sizeof membufa);
+
+            t1 = gettime();
+            bench_RW(control, membufa, membufb, w, TESTSIZE / w);
+            t2 = gettime();
+            byte_cnt = bench_RW(CANDIDATE, membufa, membufb, w, TESTSIZE / w);
+            t3 = gettime();
+            printf("%s%6.2f", sep, ((double)byte_cnt) / ((t3 - t2) - (t2 - t1)));
+            sep = ", ";
+            fflush(stdout);
+        }
+        printf("\n");
     }
 #endif
 }
