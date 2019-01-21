@@ -20,19 +20,11 @@ set -e
 
 case "$1" in
     configure)
-        if [ -f /spindle_install ]; then
-            FPRELOAD=/etc/ld.so.preload.disabled
-            rm /spindle_install
-        else
-            FPRELOAD=/etc/ld.so.preload
-        fi
-            
-        if [ -f $FPRELOAD ]; then
-            sed -i 's/libcofi_rpi/libarmmem/' $FPRELOAD
-        fi
-        if ! grep -q -s libarmmem $FPRELOAD; then
-            echo "/usr/lib/arm-linux-gnueabihf/libarmmem.so" >> $FPRELOAD
-        fi
+      FPRELOAD=/etc/ld.so.preload
+      if [ -f "$FPRELOAD" ]; then
+        sed -i 's/libcofi_rpi/libarmmem/' "$FPRELOAD"
+      fi
+      echo "/usr/lib/arm-linux-gnueabihf/libarmmem-\${PLATFORM}.so" >> "$FPRELOAD"
     ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)

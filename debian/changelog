@@ -1,3 +1,15 @@
+raspi-copies-and-fills (0.7) stretch; urgency=medium
+
+  * Update to a3277ce
+
+ -- Serge Schneider <serge@raspberrypi.org>  Fri, 18 Jan 2019 17:06:02 +0000
+
+raspi-copies-and-fills (0.6) stretch; urgency=medium
+
+  * Instruction incompatible with valgrind and qemu removed.
+
+ -- Simon Long <simon@raspberrypi.org>  Mon, 18 Sep 2017 07:21:57 +0100
+
 raspi-copies-and-fills (0.5-1) jessie; urgency=low
 
   * Initial release

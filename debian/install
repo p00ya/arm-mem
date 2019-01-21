@@ -1,1 +1,2 @@
-libarmmem.so usr/lib/arm-linux-gnueabihf
+libarmmem-v6l.so usr/lib/arm-linux-gnueabihf
+libarmmem-v7l.so usr/lib/arm-linux-gnueabihf
