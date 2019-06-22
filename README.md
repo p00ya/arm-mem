@@ -1,12 +1,11 @@
-arm-mem
-=======
+# raspi-copies-and-fills
 
 ARM-accelerated versions of selected functions from string.h
 
-To build the library, use
-$ make
-or, if cross-compiling, use
-$ CROSS_COMPILE=arm-linux-gnueabihf- make
+This is a fork of the arm-mem repository, with debian packaging for
+Raspbian.  Build a binary with:
 
-Also included is a simple test harness, inspired by the benchmarker
-from the pixman library. This can be built via the "test" make target.
+```
+debuild -b -uc -us
+```
+
