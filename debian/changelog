@@ -1,3 +1,10 @@
+raspi-copies-and-fills (0.12+nmu1) UNRELEASED; urgency=medium
+
+  * Non-maintainer upload, rebuilding in the hopes of fixing
+    https://raspberrypi.stackexchange.com/questions/72594/failed-to-start-udev-kernel-device-manager
+
+ -- Dean Scarff <dos@scarff.id.au>  Sat, 22 Jun 2019 21:18:09 +1000
+
 raspi-copies-and-fills (0.8) buster; urgency=medium
 
   * Rebuild for buster
